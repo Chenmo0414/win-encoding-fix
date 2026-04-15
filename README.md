@@ -1,4 +1,4 @@
-# win-utf8
+# win-encoding-fix
 
 Windows Shell encoding skill for AI coding assistants. Fixes GBK/UTF-8 encoding issues on Windows 10+ with MSYS2/Git Bash.
 
@@ -28,14 +28,14 @@ This skill teaches AI assistants to handle all these cases correctly.
 ### npx (recommended)
 
 ```bash
-npx win-utf8 install --setup-env
+npx win-encoding-fix install --setup-env
 ```
 
 ### npm global
 
 ```bash
-npm install -g win-utf8
-win-utf8 install --setup-env
+npm install -g win-encoding-fix
+win-encoding-fix install --setup-env
 ```
 
 ### Manual
@@ -51,10 +51,10 @@ Copy `SKILL.md` to:
 ## Commands
 
 ```bash
-win-utf8 install              # Install SKILL.md to detected platforms
-win-utf8 install --setup-env  # Also configure bash_profile + git
-win-utf8 setup-env            # Only configure environment
-win-utf8 uninstall            # Remove skill files
+win-encoding-fix install              # Install SKILL.md to detected platforms
+win-encoding-fix install --setup-env  # Also configure bash_profile + git
+win-encoding-fix setup-env            # Only configure environment
+win-encoding-fix uninstall            # Remove skill files
 ```
 
 ## Environment Setup

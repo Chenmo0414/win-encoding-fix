@@ -66,7 +66,7 @@ function setupEnv() {
   // .bash_profile
   const bashProfile = path.join(os.homedir(), '.bash_profile')
   const envBlock = [
-    '# win-utf8: Encoding fixes for Windows GBK → UTF-8',
+    '# win-encoding-fix: Encoding fixes for Windows GBK → UTF-8',
     'export PYTHONUTF8=1',
     'export PYTHONIOENCODING=utf-8',
     'export LANG=en_US.UTF-8',
@@ -109,7 +109,7 @@ function setupEnv() {
 const args = process.argv.slice(2)
 const command = args[0] || 'install'
 
-console.log(`\nwin-utf8 v${require('../package.json').version}\n`)
+console.log(`\nwin-encoding-fix v${require('../package.json').version}\n`)
 
 targets.openclaw = detectOpenclaw()
 
