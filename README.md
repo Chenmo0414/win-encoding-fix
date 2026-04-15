@@ -51,10 +51,15 @@ Copy `SKILL.md` to:
 ## Commands
 
 ```bash
-win-encoding-fix install              # Install SKILL.md to detected platforms
+win-encoding-fix install              # Install to auto-detected platforms
 win-encoding-fix install --setup-env  # Also configure bash_profile + git
 win-encoding-fix setup-env            # Only configure environment
 win-encoding-fix uninstall            # Remove skill files
+
+# Custom install paths (if not using default locations)
+win-encoding-fix install --claude=D:\my-claude
+win-encoding-fix install --codex=E:\my-codex
+win-encoding-fix install --openclaw=E:\.openclaw
 ```
 
 ## Environment Setup

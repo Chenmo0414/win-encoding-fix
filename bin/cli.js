@@ -7,10 +7,39 @@ const os = require('os')
 const SKILL_NAME = 'windows-shell'
 const SKILL_FILE = path.join(__dirname, '..', 'SKILL.md')
 
-const targets = {
-  claude: path.join(os.homedir(), '.claude', 'skills', SKILL_NAME),
-  codex: path.join(os.homedir(), '.codex', 'skills', SKILL_NAME),
-  openclaw: null // detected dynamically
+// --- Arg parsing ---
+
+const args = process.argv.slice(2)
+const flags = args.filter(a => a.startsWith('-'))
+const command = flags.includes('--help') || flags.includes('-h')
+  ? 'help'
+  : args.find(a => !a.startsWith('-')) || 'install'
+
+function getFlag(name) {
+  const prefix = `--${name}=`
+  const flag = flags.find(f => f.startsWith(prefix))
+  return flag ? flag.slice(prefix.length) : null
+}
+
+const customClaude = getFlag('claude')
+const customCodex = getFlag('codex')
+const customOpenclaw = getFlag('openclaw')
+const hasSetupEnv = flags.includes('--setup-env')
+
+// --- Target detection ---
+
+function defaultTargets() {
+  return {
+    claude: customClaude
+      ? path.join(customClaude, 'skills', SKILL_NAME)
+      : path.join(os.homedir(), '.claude', 'skills', SKILL_NAME),
+    codex: customCodex
+      ? path.join(customCodex, 'skills', SKILL_NAME)
+      : path.join(os.homedir(), '.codex', 'skills', SKILL_NAME),
+    openclaw: customOpenclaw
+      ? path.join(customOpenclaw, 'workspace', 'skills', SKILL_NAME)
+      : detectOpenclaw()
+  }
 }
 
 function detectOpenclaw() {
@@ -19,8 +48,7 @@ function detectOpenclaw() {
     path.join(os.homedir(), '.openclaw', 'workspace', 'skills', SKILL_NAME)
   ].filter(Boolean)
 
-  // Also check drive roots (D:\.openclaw is common)
-  for (const drive of ['C', 'D', 'E']) {
+  for (const drive of ['C', 'D', 'E', 'F']) {
     candidates.push(path.join(`${drive}:`, '.openclaw', 'workspace', 'skills', SKILL_NAME))
   }
 
@@ -30,6 +58,8 @@ function detectOpenclaw() {
   }
   return null
 }
+
+// --- Actions ---
 
 function install(target, targetPath) {
   if (!targetPath) {
@@ -63,7 +93,6 @@ function uninstall(target, targetPath) {
 function setupEnv() {
   console.log('\n--- Environment Setup ---\n')
 
-  // .bash_profile
   const bashProfile = path.join(os.homedir(), '.bash_profile')
   const envBlock = [
     '# win-encoding-fix: Encoding fixes for Windows GBK → UTF-8',
@@ -86,7 +115,6 @@ function setupEnv() {
     console.log('  [ok]   ~/.bash_profile — created')
   }
 
-  // Git config
   const { execSync } = require('child_process')
   const gitConfigs = [
     ['core.quotepath', 'false'],
@@ -104,14 +132,32 @@ function setupEnv() {
   console.log('  [ok]   git config — set encoding defaults')
 }
 
-// --- Main ---
+function showHelp() {
+  console.log('Usage: win-encoding-fix [command] [options]')
+  console.log('')
+  console.log('Commands:')
+  console.log('  install      Install SKILL.md to Claude/Codex/OpenClaw (default)')
+  console.log('  uninstall    Remove installed skill files')
+  console.log('  setup-env    Configure ~/.bash_profile and git for UTF-8')
+  console.log('')
+  console.log('Options:')
+  console.log('  --setup-env                Also run env setup during install')
+  console.log('  --claude=<path>            Custom Claude Code config directory')
+  console.log('  --codex=<path>             Custom Codex config directory')
+  console.log('  --openclaw=<path>          Custom OpenClaw root directory')
+  console.log('')
+  console.log('Examples:')
+  console.log('  npx win-encoding-fix install --setup-env')
+  console.log('  npx win-encoding-fix install --claude=D:\\my-claude')
+  console.log('  npx win-encoding-fix install --openclaw=E:\\.openclaw')
+  console.log('  npx win-encoding-fix uninstall')
+}
 
-const args = process.argv.slice(2)
-const command = args[0] || 'install'
+// --- Main ---
 
 console.log(`\nwin-encoding-fix v${require('../package.json').version}\n`)
 
-targets.openclaw = detectOpenclaw()
+const targets = defaultTargets()
 
 if (command === 'install') {
   console.log('Installing skill files...\n')
@@ -121,7 +167,7 @@ if (command === 'install') {
   }
   console.log(`\nInstalled to ${count} target(s).`)
 
-  if (args.includes('--setup-env')) {
+  if (hasSetupEnv) {
     setupEnv()
   } else {
     console.log('\nTip: run with --setup-env to also configure bash_profile and git config.')
@@ -133,16 +179,11 @@ if (command === 'install') {
   }
 } else if (command === 'setup-env') {
   setupEnv()
+} else if (command === 'help') {
+  showHelp()
 } else {
-  console.log('Usage: windows-shell-skill [install|uninstall|setup-env] [--setup-env]')
-  console.log('')
-  console.log('Commands:')
-  console.log('  install      Install SKILL.md to Claude/Codex/OpenClaw (default)')
-  console.log('  uninstall    Remove installed skill files')
-  console.log('  setup-env    Configure ~/.bash_profile and git for UTF-8')
-  console.log('')
-  console.log('Options:')
-  console.log('  --setup-env  Also run env setup during install')
+  console.log(`Unknown command: ${command}\n`)
+  showHelp()
 }
 
 console.log('')
