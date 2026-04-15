@@ -1,0 +1,31 @@
+{
+  "name": "windows-shell-skill",
+  "version": "4.0.0",
+  "description": "Windows Shell encoding skill for Claude Code, Codex, and OpenClaw. Fixes GBK/UTF-8 encoding issues on Windows 10+ with MSYS2/Git Bash.",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "openclaw",
+    "skill",
+    "windows",
+    "encoding",
+    "utf-8",
+    "gbk",
+    "powershell"
+  ],
+  "author": "Chenmo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chenmo0414/windows-shell-skill.git"
+  },
+  "bin": {
+    "windows-shell-skill": "bin/cli.js"
+  },
+  "files": [
+    "SKILL.md",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ]
+}
