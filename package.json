@@ -1,7 +1,10 @@
 {
   "name": "win-encoding-fix",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Windows Shell encoding skill for Claude Code, Codex, and OpenClaw. Fixes GBK/UTF-8 encoding issues on Windows 10+ with MSYS2/Git Bash.",
+  "scripts": {
+    "test": "node test/cli.test.js"
+  },
   "keywords": [
     "claude-code",
     "codex",
@@ -27,5 +30,9 @@
     "bin/",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14"
+  }
 }

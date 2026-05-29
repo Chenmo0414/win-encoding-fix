@@ -93,7 +93,27 @@ function uninstall(target, targetPath) {
 function setupEnv() {
   console.log('\n--- Environment Setup ---\n')
 
+  const { execSync } = require('child_process')
+
+  // 1) Windows User-level env vars — inherited by EVERY process (most robust).
+  //    Required because non-login/non-interactive shells (what AI agents and
+  //    scripts spawn) never source ~/.bash_profile, so vars set only there
+  //    don't reach the Python/Node the agent actually runs.
+  if (process.platform === 'win32' && !process.env.WIN_ENCODING_FIX_SKIP_WINENV) {
+    const psSetEnv =
+      '[Environment]::SetEnvironmentVariable("PYTHONUTF8", "1", "User"); ' +
+      '[Environment]::SetEnvironmentVariable("PYTHONIOENCODING", "utf-8", "User")'
+    try {
+      execSync(`powershell -Command "${psSetEnv}"`, { stdio: 'pipe' })
+      console.log('  [ok]   Windows User env — PYTHONUTF8=1, PYTHONIOENCODING=utf-8 (restart terminal to apply)')
+    } catch (err) {
+      console.log(`  [warn] Windows User env — could not set (${err.message.split('\n')[0]})`)
+    }
+  }
+
+  // 2) bash rc files — for interactive Git Bash sessions.
   const bashProfile = path.join(os.homedir(), '.bash_profile')
+  const bashRc = path.join(os.homedir(), '.bashrc')
   const envBlock = [
     '# win-encoding-fix: Encoding fixes for Windows GBK → UTF-8',
     'export PYTHONUTF8=1',
@@ -115,7 +135,18 @@ function setupEnv() {
     console.log('  [ok]   ~/.bash_profile — created')
   }
 
-  const { execSync } = require('child_process')
+  // Make non-login interactive shells (which source .bashrc, not .bash_profile)
+  // pick up the same vars.
+  const sourceLine = '[ -f ~/.bash_profile ] && . ~/.bash_profile'
+  const rcContent = fs.existsSync(bashRc) ? fs.readFileSync(bashRc, 'utf-8') : ''
+  if (rcContent.includes('.bash_profile')) {
+    console.log('  [ok]   ~/.bashrc — already sources .bash_profile')
+  } else {
+    fs.appendFileSync(bashRc, (rcContent && !rcContent.endsWith('\n') ? '\n' : '') + sourceLine + '\n')
+    console.log('  [ok]   ~/.bashrc — sources .bash_profile')
+  }
+
+  // 3) Git global config.
   const gitConfigs = [
     ['core.quotepath', 'false'],
     ['core.autocrlf', 'input'],
