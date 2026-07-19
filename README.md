@@ -27,28 +27,40 @@ This skill teaches AI assistants to handle all these cases correctly.
 
 ## Install
 
-### npx (recommended)
+### ClawHub (recommended)
+
+Published as [`windows-shell`](https://clawhub.dev) — install with the ClawHub CLI:
 
 ```bash
-npx win-encoding-fix install --setup-env
-```
-
-### npm global
-
-```bash
-npm install -g win-encoding-fix
-win-encoding-fix install --setup-env
+clawhub install windows-shell
 ```
 
 ### Manual
 
-Copy `SKILL.md` to:
+Copy `SKILL.md` to whichever assistants you use:
 
 | Platform | Path |
 |----------|------|
 | Claude Code | `~/.claude/skills/windows-shell/SKILL.md` |
 | Codex | `~/.codex/skills/windows-shell/SKILL.md` |
 | OpenClaw | `~/.openclaw/workspace/skills/windows-shell/SKILL.md` |
+
+Or, from a clone of this repo, run the bundled installer (auto-detects all three):
+
+```bash
+node bin/cli.js install --setup-env
+```
+
+### npm
+
+> **Not yet published to npm.** The `npx win-encoding-fix` / `npm install -g win-encoding-fix`
+> commands below will only work once the package is published to the npm registry.
+> Until then, use the ClawHub or manual install above.
+
+```bash
+npx win-encoding-fix install --setup-env      # after npm publish
+npm install -g win-encoding-fix               # after npm publish
+```
 
 ## Commands
 

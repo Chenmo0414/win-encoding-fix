@@ -1,7 +1,11 @@
-# Only SKILL.md is the skill content. Everything below is for the npm
-# distribution / repo and should not ship in the ClawHub skill bundle.
+# The ClawHub bundle ships the skill doc plus README/LICENSE only — no
+# executable logic (keeps the clawscan-note truthful). Everything below is
+# npm-distribution / repo tooling and must NOT ship in the skill bundle.
 bin/
 test/
+scripts/
+publish/
 package.json
 .gitignore
+.clawhubignore
 node_modules/

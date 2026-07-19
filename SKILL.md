@@ -1,7 +1,8 @@
 ---
 name: windows-shell
-version: 4.1.0
+version: 4.2.0
 description: "Windows 命令行编码与兼容性规范。覆盖 GBK/UTF-8 编码、PowerShell/pwsh 互操作、Python/Node.js、Git 配置、代码生成规则。适用于 Windows 10/11 + MSYS2/Git Bash 环境下的所有命令行操作。"
+license: MIT
 metadata:
   openclaw:
     emoji: "🪟"
@@ -23,7 +24,10 @@ metadata:
 |------|------|
 | 执行 PowerShell 命令 | `powershell -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ...'` |
 | PowerShell 中有 `$_`/`$null` | 外层用**单引号**，防止 bash 展开 |
-| PowerShell 读文件 | 加 `-Encoding UTF8`（pwsh 7 默认即 UTF-8，可省） |
+| PowerShell 读文件 | `-Encoding` 必须匹配文件真实编码：UTF-8 文件用 `UTF8`；**GBK 遗留文件**用 `Default`/`oem`（别硬套 UTF8） |
+| PowerShell 写文件（无 BOM） | PS5.1 的 `-Encoding UTF8` 会**带 BOM**；无 BOM 需 `[System.IO.File]::WriteAllText` + `UTF8Encoding($false)` 或 pwsh `utf8NoBOM` |
+| PowerShell 输出重定向到文件 | PS5.1 的 `>`/`Out-File` 默认 **UTF-16 LE**；要 UTF-8 须显式 `Out-File -Encoding utf8` |
+| 管道把 UTF-8 **喂进** PowerShell | 还需设 `[Console]::InputEncoding`；PS→原生命令管道由 `$OutputEncoding` 决定 |
 | 执行系统查询 | 用 `Get-CimInstance` 替代 `wmic` |
 | 执行 Python 单行命令 | 加 `-X utf8`：`python -X utf8 -c "..."`（**不要假设** `PYTHONUTF8` 已生效） |
 | 生成 Python 代码 | `open()` 必须带 `encoding='utf-8'` |
@@ -89,13 +93,35 @@ powershell -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; �
 
 **关于 pwsh（PowerShell 7）**：若系统装有 `pwsh`（`which pwsh` 可检测），它读写文件默认即 UTF-8，但**输出到管道仍可能因控制台代码页而乱码**（实测不稳定）。因此 pwsh 同样建议带上述前缀——前缀对 pwsh 无害、对 5.1 必需，统一加最省心。
 
-### 规则 2：PowerShell 读文件必须指定 UTF-8
+### 规则 2：PowerShell 读写文件 —— `-Encoding` 必须匹配文件真实编码
+
+**读 UTF-8 文件**：PowerShell 5.1 不加 `-Encoding UTF8` 会用 GBK 读取，实测 `中文` → `涓枃`。
 
 ```bash
 powershell -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content "path\file.txt" -Encoding UTF8'
 ```
 
-PowerShell 5.1 不加 `-Encoding UTF8` 会用 GBK 读取 UTF-8 文件（实测 `中文` → `涓枃`）。写文件同理用 `Set-Content -Encoding UTF8`。pwsh 7 默认 UTF-8 可省此参数，但加上无害。
+**⚠️ 读 GBK 遗留文件（本机最常见）**：反过来，对一个真正的 GBK/936 文件强加 `-Encoding UTF8` 会**读出乱码**。`-Encoding` 的值必须等于文件的真实编码：
+
+| 文件真实编码 | PS 5.1 读法 | pwsh 7 读法 |
+|------|------|------|
+| UTF-8 | `-Encoding UTF8` | 默认即可（或 `-Encoding utf8`） |
+| GBK/936（遗留） | `-Encoding Default` 或不加 | `-Encoding oem` 或 `[System.Text.Encoding]::GetEncoding(936)` |
+
+pwsh 7 默认按 UTF-8 读，遇到 GBK 文件反而会 mojibake，此时**必须显式指定 936**。
+
+**写文件的 BOM 陷阱**：PS 5.1 的 `Set-Content -Encoding UTF8` / `Out-File -Encoding UTF8` 会写入 **UTF-8 BOM**（`EF BB BF`），很多工具（旧编译器、某些 JSON 解析器、shell 脚本）会因此报错。要写**无 BOM** UTF-8：
+
+```powershell
+# PS 5.1 无 BOM 写法
+[System.IO.File]::WriteAllText("out.txt", $content, (New-Object System.Text.UTF8Encoding($false)))
+# pwsh 7
+Set-Content out.txt -Value $content -Encoding utf8NoBOM
+```
+
+**输出重定向的编码**：PS 5.1 的 `>` 和 `Out-File` **默认写 UTF-16 LE**，不是 UTF-8。若要把命令输出存成 UTF-8 文件给后续读取，务必显式 `... | Out-File -Encoding utf8 out.txt`（注意上面的 BOM 说明），或捕获字符串后用 .NET 写。
+
+**stdin / 管道方向**：`[Console]::OutputEncoding` 只管 PowerShell **输出**。若要把 UTF-8 内容通过管道**喂进** PowerShell（`echo ... | powershell ...`），还需 `[Console]::InputEncoding = [System.Text.Encoding]::UTF8`；而 PowerShell **管道给下游原生命令**（如 `... | findstr`）用的是 `$OutputEncoding` 变量（默认 ASCII，会丢中文）。能用内联 `-Command` 参数就别走 stdin 管道。
 
 ### 规则 3：禁止直接使用传统 CMD 工具和 cmd /c
 
@@ -117,10 +143,12 @@ PowerShell 5.1 不加 `-Encoding UTF8` 会用 GBK 读取 UTF-8 文件（实测 `
 | `findstr` | `Select-String` |
 | `cmd /c` | **永远不用** |
 
-在 PowerShell 中包装传统命令也可正确转码：
+在 PowerShell 中包装传统命令**通常**可正确转码：
 ```bash
 powershell -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; systeminfo | Select-Object -First 5'
 ```
+
+> **注意，包装不是万能的**：`[Console]::OutputEncoding` 只对**遵守控制台输出代码页**的工具有效（`systeminfo`、`ipconfig` 等）。对于**输出固定 GBK 字节或原始字节**的工具（部分第三方 CLI、某些日志），包装后仍是乱码——这类需要「先按 936 解码、再转 UTF-8」：`powershell -Command '$s = (& some.exe) ; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [System.Text.Encoding]::GetEncoding(936).GetString(...)'`，或在 Node/Python 侧以**字节**捕获再按真实编码解码（见规则 5、规则 7）。
 
 ### 规则 4：Python 命令行执行 —— 优先 `-X utf8`，不要假设环境
 
@@ -142,6 +170,13 @@ Node.js 自身输出 UTF-8 没问题，但 `execSync`/`exec`/`spawn` 调用传�
 **修复**：让子进程通过 PowerShell 输出 UTF-8：
 ```javascript
 execSync('powershell -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; systeminfo"').toString('utf-8')
+```
+
+对于**输出原始 GBK 字节、不认控制台代码页**的工具，PowerShell 包装无效，应以字节捕获再手动解码：
+```javascript
+const { execSync } = require('child_process')
+const buf = execSync('some-gbk-tool.exe')       // 拿 Buffer，不要直接 toString
+const text = new TextDecoder('gbk').decode(buf)  // 按真实编码解码
 ```
 
 ## 代码生成规则
