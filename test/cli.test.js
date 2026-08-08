@@ -17,8 +17,8 @@ const path = require('path')
 const { execFileSync } = require('child_process')
 
 const CLI = path.join(__dirname, '..', 'bin', 'cli.js')
-const SKILL_SRC = path.join(__dirname, '..', 'SKILL.md')
 const SKILL_NAME = 'windows-shell'
+const SKILL_SRC = path.join(__dirname, '..', 'skills', SKILL_NAME, 'SKILL.md')
 
 let passed = 0
 let failed = 0

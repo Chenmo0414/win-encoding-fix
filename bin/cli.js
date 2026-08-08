@@ -5,7 +5,7 @@ const path = require('path')
 const os = require('os')
 
 const SKILL_NAME = 'windows-shell'
-const SKILL_FILE = path.join(__dirname, '..', 'SKILL.md')
+const SKILL_FILE = path.join(__dirname, '..', 'skills', SKILL_NAME, 'SKILL.md')
 
 // --- Arg parsing ---
 

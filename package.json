@@ -28,8 +28,8 @@
     "win-encoding-fix": "bin/cli.js"
   },
   "files": [
-    "SKILL.md",
     "bin/",
+    "skills/",
     "README.md",
     "LICENSE"
   ],
