@@ -72,7 +72,10 @@ done
 echo "Running tests before publish..."
 npm test
 
-VERSION="$(grep -m1 '^version:' "$SKILL_SRC" | sed 's/version:[[:space:]]*//' | tr -d '\r')"
+# `|| true` is load-bearing: under `set -euo pipefail` a grep that matches
+# nothing makes the whole assignment fail, so the script would die silently with
+# exit 1 and the guard below would never print its message.
+VERSION="$(grep -m1 '^version:' "$SKILL_SRC" | sed 's/version:[[:space:]]*//' | tr -d '\r' || true)"
 if [ -z "$VERSION" ]; then
   echo "Could not read 'version:' from ${SKILL_SRC}" >&2
   exit 1

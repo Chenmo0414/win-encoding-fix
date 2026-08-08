@@ -114,6 +114,30 @@ test('parseFrontmatter returns empty for a file with no frontmatter', () => {
   assert.deepStrictEqual(parseFrontmatter('# just a heading\n'), {})
 })
 
+// Without a BOM strip, ^--- never anchors and the WHOLE frontmatter parses as
+// {} — surfacing later as the baffling `version "undefined" is not semver`
+// rather than "your file has a BOM". Windows editors add one readily, and this
+// repo is about exactly that class of problem.
+test('parseFrontmatter tolerates a UTF-8 BOM before the frontmatter', () => {
+  const meta = parseFrontmatter('﻿---\nname: bommed\nversion: 1.2.3\n---\n\nbody\n')
+  assert.strictEqual(meta.name, 'bommed')
+  assert.strictEqual(meta.version, '1.2.3')
+})
+
+test('a skill whose SKILL.md carries a BOM still resolves its metadata', () => {
+  const root = mkTmp('sf-bom-')
+  fs.mkdirSync(path.join(root, 'bommed'), { recursive: true })
+  fs.writeFileSync(
+    path.join(root, 'bommed', 'SKILL.md'),
+    '﻿---\nname: bommed\nversion: 4.5.6\ndescription: x\nlicense: MIT\n---\n\n# x\n',
+    'utf-8'
+  )
+  const [skill] = listSkills(root)
+  assert(skill, 'BOM-prefixed skill was not discovered')
+  assert.strictEqual(readMeta(skill).version, '4.5.6')
+  rmrf(root)
+})
+
 // --- per-skill contract, data-driven over the REAL registry ---
 
 const realSkills = listSkills()

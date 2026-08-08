@@ -16,19 +16,19 @@ console.log('--- cli ---')
 // --- help ---
 
 test('help lists all commands and options', () => {
-  const { stdout } = runCli(['--help'], { isolate: false })
+  const { stdout } = runCli(['--help'])
   for (const token of ['install', 'uninstall', 'setup-env', 'list', '--claude', '--codex', '--openclaw', '--setup-env']) {
     assert(stdout.includes(token), `help missing ${token}`)
   }
 })
 
 test('-h aliases to help', () => {
-  const { stdout } = runCli(['-h'], { isolate: false })
+  const { stdout } = runCli(['-h'])
   assert(stdout.includes('Usage'), '-h did not show help')
 })
 
 test('help documents the version flag and the "no slug means all" rule', () => {
-  const { stdout } = runCli(['help'], { isolate: false })
+  const { stdout } = runCli(['help'])
   assert(stdout.includes('--version'), 'help does not mention --version')
   assert(/Naming no skill means every skill/.test(stdout), 'help does not explain the default slug set')
 })
@@ -60,13 +60,15 @@ test('--version installs nothing', () => {
   rmrf(home)
 })
 
-// Regression: target resolution ran unconditionally at module load, so `--help`
-// scanned C:/D:/E:/F: for OpenClaw roots and realpath'd them — a disconnected or
-// sleeping drive letter could hang or throw on a pure help request.
-test('help resolves no targets and writes nothing', () => {
+// Context: target resolution used to run unconditionally at module load, so
+// `--help` scanned C:/D:/E:/F: for OpenClaw roots and realpath'd them — a
+// disconnected or sleeping drive letter could hang or throw on a pure help
+// request. The fix is structural (resolveTargets is called only inside the
+// install and uninstall command functions in lib/cli.js), which no black-box
+// assertion can observe. So this case claims only what it actually checks:
+// help succeeds and writes nothing even with the drive scan unsealed.
+test('help exits 0 and writes nothing, even with the drive scan unsealed', () => {
   const home = mkTmp('sf-help-')
-  // Drive scan deliberately left ENABLED: if help resolved targets, this is
-  // where it would happen.
   const { code } = runCli(['--help'], {
     home,
     keepHome: true,

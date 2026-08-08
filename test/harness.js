@@ -70,36 +70,38 @@ function rmrf(p) {
   try { fs.rmSync(p, { recursive: true, force: true }) } catch {}
 }
 
-// Run the CLI. By default it is fully isolated: HOME/USERPROFILE point at a
-// throwaway temp dir, OPENCLAW_HOME points into it (so the drive scan can't
-// reach a real .openclaw unless a caller opts in), git global config is
-// redirected, and the Windows-User-env branch is skipped. Pass
-// { isolate: false } only for tests that spawn no filesystem side effects.
-// Pass extraEnv to override individual vars.
+// Run the CLI. ALWAYS isolated — there is no opt-out: HOME/USERPROFILE point at
+// a throwaway temp dir, OPENCLAW_HOME points into it (so the drive scan can't
+// reach a real .openclaw), git global config is redirected, and the
+// Windows-User-env branch is skipped. Pass extraEnv to override individual vars.
+//
+// An earlier `{ isolate: false }` shortcut existed for cases believed to have no
+// filesystem side effects (help, -h). It is gone: "this invocation can't
+// possibly write anything" is a claim about code that changes, and the whole
+// point of the harness is that no test can ever reach the real ~/.claude,
+// ~/.bash_profile or global git config.
 //
 // Both spellings of each escape hatch are set. The legacy WIN_ENCODING_FIX_*
 // names must keep working: if SKIP_WINENV ever stopped gating, setupEnv would
 // really call SetEnvironmentVariable(..., 'User'), which broadcasts
 // WM_SETTINGCHANGE and can hang — during `npm test`.
 function runCli(args, opts = {}) {
-  const { isolate = true, extraEnv = {} } = opts
+  const { extraEnv = {} } = opts
   let home = opts.home
   let cleanupHome = false
   const baseEnv = { ...process.env }
 
-  if (isolate) {
-    if (!home) { home = mkTmp('sf-iso-'); cleanupHome = true }
-    Object.assign(baseEnv, {
-      HOME: home,
-      USERPROFILE: home,
-      OPENCLAW_HOME: path.join(home, '.no-openclaw'),
-      GIT_CONFIG_GLOBAL: path.join(home, '.gitconfig-test'),
-      SKILL_FACTORY_SKIP_WINENV: '1',
-      SKILL_FACTORY_NO_DRIVE_SCAN: '1',
-      WIN_ENCODING_FIX_SKIP_WINENV: '1',
-      WIN_ENCODING_FIX_NO_DRIVE_SCAN: '1'
-    })
-  }
+  if (!home) { home = mkTmp('sf-iso-'); cleanupHome = true }
+  Object.assign(baseEnv, {
+    HOME: home,
+    USERPROFILE: home,
+    OPENCLAW_HOME: path.join(home, '.no-openclaw'),
+    GIT_CONFIG_GLOBAL: path.join(home, '.gitconfig-test'),
+    SKILL_FACTORY_SKIP_WINENV: '1',
+    SKILL_FACTORY_NO_DRIVE_SCAN: '1',
+    WIN_ENCODING_FIX_SKIP_WINENV: '1',
+    WIN_ENCODING_FIX_NO_DRIVE_SCAN: '1'
+  })
   const env = { ...baseEnv, ...extraEnv }
 
   try {
