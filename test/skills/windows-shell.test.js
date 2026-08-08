@@ -48,6 +48,15 @@ test('the git keys documented in SKILL.md match the ones setup-env writes', () =
   assert.strictEqual(missing.length, 0, `SKILL.md does not document: ${missing.join(', ')}`)
 })
 
+// `npx win-encoding-fix install --setup-env` was in the published skill for
+// three versions and never worked: the package was never on npm, and npx
+// resolves package NAMES, not bin names. Nothing here may advertise an npx
+// invocation until something is actually published to the registry.
+test('SKILL.md advertises no npx invocation', () => {
+  const npx = src.match(/npx\s+\S+/g) || []
+  assert.deepStrictEqual(npx, [], `SKILL.md still advertises: ${npx.join(', ')}`)
+})
+
 test('SKILL.md is LF-only and BOM-free', () => {
   const buf = fs.readFileSync(path.join(SKILL_DIR, 'SKILL.md'))
   assert(!(buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf), 'SKILL.md has a UTF-8 BOM')

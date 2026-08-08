@@ -1,6 +1,6 @@
 ---
 name: windows-shell
-version: 4.2.0
+version: 4.3.0
 description: "Windows 命令行编码与兼容性规范。覆盖 GBK/UTF-8 编码、PowerShell/pwsh 互操作、Python/Node.js、Git 配置、代码生成规则。适用于 Windows 10/11 + MSYS2/Git Bash 环境下的所有命令行操作。"
 license: MIT
 metadata:
@@ -74,7 +74,7 @@ git config --global i18n.logOutputEncoding utf-8
 git config --global core.pager "less -R"
 ```
 
-> 一键配置：`npx win-encoding-fix install --setup-env`
+> 一键配置：在 [skill-factory](https://github.com/Chenmo0414/win-encoding-fix) 仓库里执行 `node bin/cli.js setup-env`
 
 ## Shell 命令规则
 
