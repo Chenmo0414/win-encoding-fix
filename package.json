@@ -1,13 +1,14 @@
 {
-  "name": "win-encoding-fix",
-  "version": "4.2.0",
-  "description": "Windows Shell encoding skill for Claude Code, Codex, and OpenClaw. Fixes GBK/UTF-8 encoding issues on Windows 10+ with MSYS2/Git Bash.",
+  "name": "skill-factory",
+  "version": "5.0.0",
+  "description": "Skill 工厂 — a multi-skill factory for Claude Code, Codex and OpenClaw. Discovers skills from skills/<slug>/SKILL.md and installs them to every detected assistant.",
   "scripts": {
     "test": "node test/cli.test.js",
     "prepublishOnly": "npm test",
     "publish:skill": "bash scripts/publish-clawhub.sh"
   },
   "keywords": [
+    "skill-factory",
     "claude-code",
     "codex",
     "openclaw",
@@ -25,16 +26,18 @@
     "url": "git+https://github.com/Chenmo0414/win-encoding-fix.git"
   },
   "bin": {
+    "skill-factory": "bin/cli.js",
     "win-encoding-fix": "bin/cli.js"
   },
   "files": [
     "bin/",
+    "lib/",
     "skills/",
     "README.md",
     "LICENSE"
   ],
   "devDependencies": {},
   "engines": {
-    "node": ">=14"
+    "node": ">=14.14"
   }
 }

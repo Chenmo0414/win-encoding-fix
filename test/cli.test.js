@@ -99,11 +99,29 @@ test('SKILL.md has name, version (semver), description, license frontmatter', ()
   assert(ver, 'version missing or not semver')
 })
 
-test('package.json version matches SKILL.md version', () => {
-  const pkg = require(path.join(__dirname, '..', 'package.json'))
-  const src = fs.readFileSync(SKILL_SRC, 'utf-8')
-  const ver = src.match(/\bversion:\s*([0-9.]+)/)[1]
-  assert.strictEqual(pkg.version, ver, `pkg ${pkg.version} != skill ${ver}`)
+// Replaces the old `pkg.version === SKILL.md version` assertion. That coupling
+// is structurally impossible once the repo holds N independently-versioned
+// skills — and it was the wrong invariant anyway: it is what forced a CLI-only
+// change to bump the skill's version. The real cross-file identity is
+// slug == directory name == frontmatter name, which is what protects the
+// already-published ClawHub slug.
+test('every skill frontmatter name equals its directory name', () => {
+  const { listSkills, readMeta } = require(path.join(__dirname, '..', 'lib', 'skills'))
+  const skills = listSkills()
+  assert(skills.length > 0, 'no skills discovered')
+  for (const skill of skills) {
+    assert.strictEqual(readMeta(skill).name, skill.slug, `${skill.slug}: frontmatter name mismatch`)
+  }
+})
+
+test('windows-shell CHANGELOG top section matches its frontmatter version', () => {
+  const { parseFrontmatter } = require(path.join(__dirname, '..', 'lib', 'skills'))
+  const dir = path.join(__dirname, '..', 'skills', SKILL_NAME)
+  const version = parseFrontmatter(fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf-8')).version
+  const changelog = fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf-8')
+  const head = changelog.match(/^## (\d+\.\d+\.\d+)$/m)
+  assert(head, 'CHANGELOG.md has no "## x.y.z" heading')
+  assert.strictEqual(head[1], version, `CHANGELOG head ${head[1]} != frontmatter ${version}`)
 })
 
 test('SKILL.md body keeps its 8 numbered rules and setup section (truncation guard)', () => {

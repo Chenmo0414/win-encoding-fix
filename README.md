@@ -1,133 +1,155 @@
-# win-encoding-fix
+# skill-factory（Skill 工厂）
 
-Windows Shell encoding skill for AI coding assistants. Fixes GBK/UTF-8 encoding issues on Windows 10+ with MSYS2/Git Bash.
+A small factory for AI-assistant skills. Each skill lives in its own directory under
+`skills/`, and one zero-dependency CLI installs them into every assistant it can find —
+Claude Code, Codex and OpenClaw.
 
-Tested and verified on real Windows 10 (code page 936/GBK) environments.
+The factory currently ships one skill, [`windows-shell`](skills/windows-shell/SKILL.md):
+a Windows Shell encoding ruleset that fixes GBK/UTF-8 garbling on Windows 10+ with
+MSYS2/Git Bash. Tested and verified on a real Windows 10 (code page 936/GBK) machine.
 
-## Problem
+## Skills
 
-On Windows with GBK locale, AI coding assistants (Claude Code, Codex, OpenClaw) frequently produce garbled Chinese output because:
+| Skill | What it does |
+|-------|--------------|
+| [`windows-shell`](skills/windows-shell/SKILL.md) | 8 encoding rules for PowerShell/pwsh, CMD, Python, Node.js and Git on GBK Windows |
 
-- PowerShell outputs GBK by default, but the terminal expects UTF-8
-- Traditional CMD tools (`wmic`, `systeminfo`, etc.) output UTF-16 or GBK
-- Python `print()` and `open()` default to GBK
-- Node.js `execSync` decodes GBK output as UTF-8
-- Git shows Chinese filenames as octal escapes
+One directory per skill under `skills/`. The **directory name is the skill's identity**:
+it is simultaneously the ClawHub slug, the installed directory name, and the `name:` in
+the skill's own frontmatter. The test suite enforces that all three agree, so they cannot
+drift. There is no manifest file to keep in sync.
 
-This skill teaches AI assistants to handle all these cases correctly.
-
-> **A subtle trap this skill solves:** exports written to `~/.bash_profile` are only sourced by *login* shells. AI assistants and scripts run in **non-interactive** shells that source neither `.bash_profile` nor `.bashrc`, so `PYTHONUTF8=1` set there never reaches the Python the agent actually runs (`sys.flags.utf8_mode` stays `0`). v4.1.0 fixes this by setting **Windows User-level environment variables** (inherited by every process) and by having `.bashrc` source `.bash_profile`.
-
-## What's Included
-
-- **8 encoding rules** covering PowerShell/pwsh, CMD, Python, Node.js, and Git
-- **Quick reference table** + an environment self-check
-- **Code generation rules** ensuring AI-written code handles encoding properly
-- **Robust environment setup** — Windows User env vars + bash rc files + git config
+> **Careful:** `skills/` is also ClawHub's default managed directory. Do not run
+> `clawhub install` or `clawhub update --force` from the repo root — `--force` deletes
+> the target directory before unpacking, which would wipe a skill's source. The factory
+> ignores any directory carrying `.clawhub/origin.json`, so a stray managed skill is
+> never re-published or pushed into your `~/.claude`.
 
 ## Install
 
-### ClawHub (recommended)
-
-Published as [`windows-shell`](https://clawhub.dev) — install with the ClawHub CLI:
+### ClawHub (recommended, per skill)
 
 ```bash
 clawhub install windows-shell
 ```
 
-### Manual
-
-Copy `SKILL.md` to whichever assistants you use:
-
-| Platform | Path |
-|----------|------|
-| Claude Code | `~/.claude/skills/windows-shell/SKILL.md` |
-| Codex | `~/.codex/skills/windows-shell/SKILL.md` |
-| OpenClaw | `~/.openclaw/workspace/skills/windows-shell/SKILL.md` |
-
-Or, from a clone of this repo, run the bundled installer (auto-detects all three):
+### From a clone (all skills at once)
 
 ```bash
 node bin/cli.js install --setup-env
 ```
 
+### Manual
+
+Copy a skill's directory to whichever assistants you use:
+
+| Platform | Path |
+|----------|------|
+| Claude Code | `~/.claude/skills/<slug>/` |
+| Codex | `~/.codex/skills/<slug>/` |
+| OpenClaw | `~/.openclaw/workspace/skills/<slug>/` |
+
 ### npm
 
-> **Not yet published to npm.** The `npx win-encoding-fix` / `npm install -g win-encoding-fix`
-> commands below will only work once the package is published to the npm registry.
-> Until then, use the ClawHub or manual install above.
+> **Not published to npm.** `win-encoding-fix` never was, and `skill-factory` is not yet.
+> Use the ClawHub or clone install above. The `npx`/`-g` forms below only work after a
+> publish.
 
 ```bash
-npx win-encoding-fix install --setup-env      # after npm publish
-npm install -g win-encoding-fix               # after npm publish
+npx skill-factory install --setup-env
+npm install -g skill-factory
 ```
+
+If you previously ran `npm i -g` from a clone of the old `win-encoding-fix` package,
+remove it first (`npm rm -g win-encoding-fix`) — npm 7+ refuses to relink a bin that
+belongs to a different package name. The `win-encoding-fix` bin name still works; it
+points at the same CLI.
 
 ## Commands
 
 ```bash
-win-encoding-fix install              # Install to auto-detected platforms
-win-encoding-fix install --setup-env  # Also configure bash_profile + git
-win-encoding-fix setup-env            # Only configure environment
-win-encoding-fix uninstall            # Remove skill files
+skill-factory install                 # install every skill to every detected assistant
+skill-factory install windows-shell   # install just one skill
+skill-factory install --setup-env     # also configure the host machine (see below)
+skill-factory list                    # list the skills in this factory
+skill-factory uninstall               # remove installed skill files
+skill-factory setup-env               # only configure the host machine
+skill-factory --version
 
-# Custom install paths (if not using default locations)
-win-encoding-fix install --claude=D:\my-claude
-win-encoding-fix install --codex=E:\my-codex
-win-encoding-fix install --openclaw=E:\.openclaw
+# Custom install paths (if not using the default locations)
+skill-factory install --claude=D:\my-claude
+skill-factory install --codex=E:\my-codex
+skill-factory install --openclaw=E:\.openclaw
 ```
 
-## Environment Setup
+Naming no skill means every skill. A misspelled slug exits non-zero and lists what is
+available — it is never a silent no-op.
 
-The `--setup-env` flag configures three layers so the fixes apply everywhere:
+## Host setup (`setup-env`)
 
-**1. Windows User environment variables** (inherited by every process — the robust layer; takes effect after restarting the terminal):
-```
-PYTHONUTF8=1
-PYTHONIOENCODING=utf-8
-```
+`setup-env` configures the **machine**, not a skill. It is a Windows-encoding concern and
+runs only when you ask for it, in three layers:
 
-**2. bash rc files** (for interactive Git Bash):
+1. **Windows User environment variables** — `PYTHONUTF8=1`, `PYTHONIOENCODING=utf-8`.
+   Inherited by every process; takes effect after restarting the terminal.
+2. **bash rc files** — the same vars plus `LANG`/`LESSCHARSET` in `~/.bash_profile`, with
+   `~/.bashrc` sourcing it so non-login shells get them too.
+3. **Global git config** — `core.quotepath=false`, `core.autocrlf=input`,
+   `i18n.commitEncoding`/`i18n.logOutputEncoding=utf-8`, `core.pager="less -R"`.
+
+Why all three: exports written to `~/.bash_profile` are only sourced by *login* shells.
+AI assistants and scripts run in **non-interactive** shells that source neither
+`.bash_profile` nor `.bashrc`, so `PYTHONUTF8=1` set there never reaches the Python the
+agent actually runs (`sys.flags.utf8_mode` stays `0`). Layer 1 is what fixes that.
+
+See [`skills/windows-shell/SKILL.md`](skills/windows-shell/SKILL.md) — section
+`环境前置条件` — for the exact commands and the reasoning behind each one, plus the 8
+encoding rules themselves.
+
+## Versioning
+
+Two independent axes:
+
+- **`package.json` version** — the factory and its CLI.
+- **`skills/<slug>/SKILL.md` frontmatter `version`** — that skill's content.
+
+They are unrelated on purpose: a CLI fix should not bump a skill's published version.
+Each skill carries its own `CHANGELOG.md`, whose top `## x.y.z` heading must match its
+frontmatter version — enforced by the test suite and by the publish script.
+
+## Publishing a skill
+
 ```bash
-# ~/.bash_profile
-export PYTHONUTF8=1
-export PYTHONIOENCODING=utf-8
-export LANG=en_US.UTF-8
-export LESSCHARSET=utf-8
-# ~/.bashrc — so non-login shells get the same vars
-[ -f ~/.bash_profile ] && . ~/.bash_profile
+bash scripts/publish-clawhub.sh windows-shell --dry-run   # inspect first
+bash scripts/publish-clawhub.sh windows-shell
 ```
 
-**3. Git global config:**
-```bash
-git config --global core.quotepath false        # Chinese filenames
-git config --global core.autocrlf input         # LF on commit
-git config --global i18n.commitEncoding utf-8
-git config --global i18n.logOutputEncoding utf-8
-git config --global core.pager "less -R"
+Edit `SKILL.md` → bump its frontmatter `version` → add the matching `## x.y.z` section to
+that skill's `CHANGELOG.md` → `npm test` → dry-run and read it → publish. The publish unit
+is the skill's own directory, so what is committed is exactly what ships.
+
+## Layout
+
 ```
-
-## Rules Summary
-
-| # | Rule | Scope |
-|---|------|-------|
-| 1 | PowerShell/pwsh: UTF-8 prefix + single quotes | Shell |
-| 2 | PowerShell: `-Encoding UTF8` for file reads | Shell |
-| 3 | Never use legacy CMD tools or `cmd /c` | Shell |
-| 4 | Python: prefer `python -X utf8` (don't assume env is loaded) | Shell |
-| 5 | Node.js: PowerShell wrapper for `execSync` | Shell |
-| 6 | Python codegen: `open()` must have `encoding='utf-8'` | Code |
-| 7 | Node.js codegen: explicit `'utf-8'` in fs/child_process | Code |
-| 8 | Git: `core.quotepath=false` for Chinese filenames | Git |
+bin/cli.js          thin entry point (keep this path)
+lib/cli.js          arg parsing, dispatch, all stdout
+lib/skills.js       the registry: skills/*/SKILL.md discovery + frontmatter
+lib/targets.js      where each assistant keeps its skills
+lib/install.js      copy / remove one skill under one skills root
+lib/setup-env.js    host-machine setup (Windows env vars, bash rc, git config)
+skills/<slug>/      one skill: SKILL.md + CHANGELOG.md
+test/               zero-dependency suite, run by test/run.js
+```
 
 ## Testing
 
 ```bash
-npm test    # runs node test/cli.test.js
+npm test
 ```
 
-The suite covers install (custom paths, idempotency, content integrity), uninstall,
-help, unknown-command fallback, `setup-env` (rc files + git config, isolated from the
-real environment), and SKILL.md frontmatter validity.
+Zero dependencies, no test framework. Every case that spawns the CLI runs against a
+throwaway `HOME` with `OPENCLAW_HOME` and `GIT_CONFIG_GLOBAL` redirected, so a test can
+never touch your real `~/.claude`, `~/.bash_profile` or global git config.
 
 ## License
 
