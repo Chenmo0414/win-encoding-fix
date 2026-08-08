@@ -3,7 +3,7 @@
   "version": "5.0.0",
   "description": "Skill 工厂 — a multi-skill factory for Claude Code, Codex and OpenClaw. Discovers skills from skills/<slug>/SKILL.md and installs them to every detected assistant.",
   "scripts": {
-    "test": "node test/cli.test.js",
+    "test": "node test/run.js",
     "prepublishOnly": "npm test",
     "publish:skill": "bash scripts/publish-clawhub.sh"
   },
