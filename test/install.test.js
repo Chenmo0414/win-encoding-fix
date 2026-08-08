@@ -204,6 +204,38 @@ test('uninstall on a clean target reports skip, does not crash', () => {
   rmrf(root)
 })
 
+// install copies whole trees, so uninstall has to unwind them. Without pruning,
+// rmdirSync on the skill dir can NEVER succeed for a skill with a subdirectory,
+// and the CLI would report "directory kept — still contains other files" about
+// empty directories the installer itself created.
+test('uninstall removes a skill with subdirectories completely', () => {
+  const root = mkTmp('sf-tree-un-')
+  const claude = path.join(root, 'claude')
+  runCli(['install', 'beta', `--claude=${claude}`], FIXTURES)
+  const dest = path.join(claude, 'skills', 'beta')
+  assert(fs.existsSync(path.join(dest, 'references', 'note.md')), 'precondition: nested file installed')
+
+  const { stdout } = runCli(['uninstall', 'beta', `--claude=${claude}`], FIXTURES)
+  assert(!fs.existsSync(dest), `skill dir survived: ${fs.existsSync(dest) && fs.readdirSync(dest)}`)
+  assert(stdout.includes('removed'), 'no removal message')
+  assert(!/directory kept/.test(stdout), 'falsely claimed the directory held other files')
+  rmrf(root)
+})
+
+test('uninstall keeps a subdirectory that holds a foreign file', () => {
+  const root = mkTmp('sf-tree-keep-')
+  const claude = path.join(root, 'claude')
+  runCli(['install', 'beta', `--claude=${claude}`], FIXTURES)
+  const dest = path.join(claude, 'skills', 'beta')
+  fs.writeFileSync(path.join(dest, 'references', 'mine.txt'), 'keep me')
+
+  const { stdout } = runCli(['uninstall', 'beta', `--claude=${claude}`], FIXTURES)
+  assert(fs.existsSync(path.join(dest, 'references', 'mine.txt')), 'a foreign file was deleted')
+  assert(!fs.existsSync(path.join(dest, 'references', 'note.md')), 'our nested file was not removed')
+  assert(/directory kept/.test(stdout), 'did not disclose that the dir was kept')
+  rmrf(root)
+})
+
 test('uninstall <slug> never touches another slug directory', () => {
   const root = mkTmp('sf-unione-')
   const claude = path.join(root, 'claude')

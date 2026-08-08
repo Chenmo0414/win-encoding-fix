@@ -103,6 +103,86 @@ test('publish script takes a slug, reads CHANGELOG.md, and hardcodes no version'
   assert(!semver, `publish script contains a hardcoded version: ${semver && semver[0]}`)
 })
 
+// Publishing is irreversible, so the script's gates are worth testing by
+// running them. Each case must exit non-zero BEFORE reaching `clawhub`.
+// The script starts with `cd "$(dirname "$0")/.."`, so which COPY is invoked —
+// not the caller's cwd — decides which repo root it inspects. Sandbox cases must
+// therefore run the sandbox's own copy.
+function runPublish(args, root = ROOT) {
+  try {
+    const stdout = execFileSync('bash', [path.join(root, 'scripts', 'publish-clawhub.sh'), ...args], {
+      cwd: root,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+    return { stdout, stderr: '', code: 0 }
+  } catch (err) {
+    return { stdout: err.stdout || '', stderr: err.stderr || '', code: err.status }
+  }
+}
+
+test('publish script refuses a missing slug and a nonexistent skill', () => {
+  assert.strictEqual(runPublish([]).code, 1, 'no-slug invocation did not exit 1')
+  assert.strictEqual(runPublish(['no-such-skill']).code, 1, 'unknown slug did not exit 1')
+  // A bare flag in slug position must not be read as a slug.
+  assert.strictEqual(runPublish(['--dry-run']).code, 1, 'a bare --dry-run was accepted as the slug')
+})
+
+// A mistyped --dry-run must ABORT, never degrade into the real publish. This is
+// the only gate between "operator wanted a preview" and an irreversible push to
+// the live registry under their account.
+test('publish script aborts on an unrecognised argument instead of publishing', () => {
+  for (const bad of ['--dryrun', '--dry-run=1', '-dry-run', 'extra']) {
+    const { code, stderr } = runPublish(['windows-shell', bad])
+    assert.strictEqual(code, 1, `\`${bad}\` did not abort (exit ${code}) — it would have published`)
+    assert(/Unrecognised argument/.test(stderr), `\`${bad}\` aborted without saying why: ${stderr}`)
+  }
+})
+
+// lib/skills.js:47 excludes clawhub-managed directories and README states that
+// guarantee. The publish path has to enforce it too, or the CLI's refusal to
+// even list a foreign skill is beside the point.
+test('publish script refuses a clawhub-managed skill directory', () => {
+  const sandbox = fs.mkdtempSync(path.join(require('os').tmpdir(), 'sf-pub-'))
+  // A throwaway copy of the repo skeleton: only what the script touches.
+  fs.mkdirSync(path.join(sandbox, 'skills', 'foreign', '.clawhub'), { recursive: true })
+  fs.writeFileSync(
+    path.join(sandbox, 'skills', 'foreign', 'SKILL.md'),
+    '---\nname: foreign\nversion: 1.0.0\ndescription: x\nlicense: MIT\n---\n\n# foreign\n'
+  )
+  fs.writeFileSync(path.join(sandbox, 'skills', 'foreign', 'CHANGELOG.md'), '## 1.0.0\n\nfirst\n')
+  fs.writeFileSync(path.join(sandbox, 'skills', 'foreign', '.clawhub', 'origin.json'), '{}')
+  fs.mkdirSync(path.join(sandbox, 'scripts'), { recursive: true })
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'publish-clawhub.sh'),
+    path.join(sandbox, 'scripts', 'publish-clawhub.sh')
+  )
+
+  const { code, stderr } = runPublish(['foreign'], sandbox)
+  assert.strictEqual(code, 1, `a clawhub-managed skill was accepted (exit ${code})`)
+  assert(/Refusing to publish/.test(stderr), `wrong rejection reason: ${stderr}`)
+  fs.rmSync(sandbox, { recursive: true, force: true })
+})
+
+test('publish script refuses a slug that disagrees with the frontmatter name', () => {
+  const sandbox = fs.mkdtempSync(path.join(require('os').tmpdir(), 'sf-pub2-'))
+  fs.mkdirSync(path.join(sandbox, 'skills', 'renamed'), { recursive: true })
+  fs.writeFileSync(
+    path.join(sandbox, 'skills', 'renamed', 'SKILL.md'),
+    '---\nname: original\nversion: 1.0.0\ndescription: x\nlicense: MIT\n---\n\n# x\n'
+  )
+  fs.mkdirSync(path.join(sandbox, 'scripts'), { recursive: true })
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'publish-clawhub.sh'),
+    path.join(sandbox, 'scripts', 'publish-clawhub.sh')
+  )
+
+  const { code, stderr } = runPublish(['renamed'], sandbox)
+  assert.strictEqual(code, 1, `identity mismatch was accepted (exit ${code})`)
+  assert(/Identity mismatch/.test(stderr), `wrong rejection reason: ${stderr}`)
+  fs.rmSync(sandbox, { recursive: true, force: true })
+})
+
 // A repo whose subject matter is Windows encoding has to hold for itself.
 test('every tracked file is valid UTF-8, BOM-free, CR-free and ends with a newline', () => {
   const listed = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf-8' })

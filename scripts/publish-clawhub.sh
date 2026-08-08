@@ -34,8 +34,39 @@ if [ ! -f "$SKILL_SRC" ]; then
   exit 1
 fi
 
+# Same eligibility rule lib/skills.js enforces: a directory carrying
+# .clawhub/origin.json was installed here by clawhub and belongs to someone
+# else. The CLI already refuses to list or install it; publishing it would push
+# a foreign skill to the registry under this operator's account, with our
+# clawscan-note attesting to contents we never checked.
+if [ -f "skills/${SLUG}/.clawhub/origin.json" ]; then
+  echo "Refusing to publish ${SLUG}: skills/${SLUG}/.clawhub/origin.json marks it as" >&2
+  echo "a clawhub-managed copy of someone else's skill, not a skill this factory owns." >&2
+  exit 1
+fi
+
+# Directory name IS the identity — it must equal the frontmatter name, or the
+# slug being published does not match the skill being published.
+FM_NAME="$(awk '/^---[[:space:]]*$/{n++; next} n==1 && /^name:/{sub(/^name:[[:space:]]*/, ""); gsub(/^["'"'"']|["'"'"']$/, ""); print; exit}' "$SKILL_SRC" | tr -d '\r')"
+if [ "$FM_NAME" != "$SLUG" ]; then
+  echo "Identity mismatch: directory is '${SLUG}' but ${SKILL_SRC} frontmatter says name: '${FM_NAME}'" >&2
+  exit 1
+fi
+
+# Strict argument handling. Anything unrecognised ABORTS rather than degrading
+# into the irreversible path — a mistyped `--dryrun` must never publish.
 DRY_RUN=0
-[ "${2:-}" = "--dry-run" ] && DRY_RUN=1
+shift
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    *)
+      echo "Unrecognised argument: ${arg}" >&2
+      echo "Usage: bash scripts/publish-clawhub.sh <slug> [--dry-run]" >&2
+      exit 1
+      ;;
+  esac
+done
 
 # Gate the publish on the test suite (skill contract + frontmatter + CLI coverage).
 echo "Running tests before publish..."

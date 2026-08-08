@@ -7,8 +7,10 @@
 const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
+const { execFileSync } = require('child_process')
 
 const { test, runCli, mkTmp, rmrf } = require('./harness')
+const { GIT_CONFIGS } = require('../lib/setup-env')
 
 console.log('--- setup-env ---')
 
@@ -104,17 +106,28 @@ test('install --setup-env runs both phases', () => {
   rmrf(root)
 })
 
-// Values are passed to git as argv, not interpolated into a double-quoted shell
-// string — the exact cmd.exe quote-eating path this repo's own rule 5 forbids.
-// "less -R" has a space, so it is the value that would show the difference.
-test('git core.pager lands as exactly "less -R"', () => {
-  const home = mkTmp('sf-pager-')
+// EVERY key setup-env claims to write must actually land, with the right value.
+// Asserting only on quotepath (as this suite once did) let a mutation that
+// dropped core.autocrlf and both i18n.* keys pass with 81/81 green — and the
+// i18n ones are precisely what stops `git log` from showing mojibake.
+//
+// git itself is the reader, so this tests what git would actually resolve rather
+// than a hand-rolled ini parse. Values come from lib/setup-env.js's own list, so
+// adding a sixth setting is covered automatically.
+test('every git setting setup-env writes lands with the right value', () => {
+  const home = mkTmp('sf-gitkeys-')
   const gitConfig = path.join(home, '.gitconfig-test')
   runCli(['setup-env'], { home, keepHome: true, extraEnv: { GIT_CONFIG_GLOBAL: gitConfig } })
-  const gc = fs.readFileSync(gitConfig, 'utf-8')
-  const line = gc.split(/\r?\n/).find(l => /^\s*pager\s*=/.test(l))
-  assert(line, `no pager line in:\n${gc}`)
-  assert.strictEqual(line.replace(/^\s*pager\s*=\s*/, '').trim(), 'less -R', `pager line was: ${line}`)
+
+  assert(GIT_CONFIGS.length >= 5, `expected at least 5 git settings, module lists ${GIT_CONFIGS.length}`)
+  for (const [key, expected] of GIT_CONFIGS) {
+    const actual = execFileSync('git', ['config', '--file', gitConfig, '--get', key], {
+      encoding: 'utf-8'
+    }).trim()
+    // "less -R" has a space, so core.pager is also the case that proves the
+    // execFileSync argv form did not lose the quoting cmd.exe would have eaten.
+    assert.strictEqual(actual, expected, `${key} = "${actual}", expected "${expected}"`)
+  }
   rmrf(home)
 })
 
@@ -132,7 +145,13 @@ test('legacy WIN_ENCODING_FIX_SKIP_WINENV still skips the Windows env branch', (
       GIT_CONFIG_GLOBAL: path.join(home, '.gc')
     }
   })
-  assert(!stdout.includes('Windows User env —'), `the Windows env branch ran:\n${stdout}`)
+  // Assert on the branch's OUTCOME markers, not on the shared "Windows User env"
+  // label: on a non-win32 host lib/setup-env.js prints
+  // "  [skip] Windows User env — not on Windows", which contains that label. A
+  // bare !includes('Windows User env —') would therefore fail on every ubuntu
+  // CI leg while the code is perfectly correct.
+  assert(!stdout.includes('[ok]   Windows User env'), `the Windows env branch ran:\n${stdout}`)
+  assert(!stdout.includes('[FAIL] Windows User env'), `the Windows env branch ran and failed:\n${stdout}`)
   rmrf(home)
 })
 
