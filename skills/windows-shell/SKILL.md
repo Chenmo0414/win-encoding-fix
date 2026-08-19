@@ -1,6 +1,6 @@
 ---
 name: windows-shell
-version: 5.0.0
+version: 5.1.0
 description: "Windows 命令行工作规范：先选对 shell（默认 Git Bash），再避开编码与 MSYS2 参数改写两类陷阱。覆盖 GBK/UTF-8、BOM、MSYS2 路径转换、PowerShell/pwsh、WSL 判定、Python/Node.js、Git 配置与代码生成规则。适用于 Windows 10/11 + MSYS2/Git Bash 环境下的所有命令行操作。细节按需读 references/。"
 license: MIT
 metadata:
@@ -24,6 +24,7 @@ metadata:
 | 症状 | 类别 | 第一反应 |
 |------|------|------|
 | 输出乱码（`涓枃`、`M-DM-c`、方块字） | **编码** | 让源头输出 UTF-8 |
+| 没报错但**结果就是不对**（参数变了值、行数少一行） | **静默失败** | 见第 1、3 条，必须交叉验证 |
 | 报「无效语法 / invalid / 找不到文件」，或参数悄悄变了值 | **MSYS2 参数改写** | `MSYS_NO_PATHCONV=1` |
 
 拿编码的解法去治参数改写，怎么加前缀都不好使——这是最常见的误诊。
@@ -84,8 +85,14 @@ od -c legacy.txt | head -2        # 或 xxd；Git Bash 没有 hexdump
 
 | 文件真实编码 | PS 5.1 | pwsh 7 |
 |------|------|------|
-| UTF-8 | `-Encoding UTF8` | 默认即可 |
+| UTF-8 | `-Encoding UTF8`（**必须显式写**） | 默认即可 |
 | GBK/936 | `-Encoding Default` | `[System.Text.Encoding]::GetEncoding(936)` |
+
+**PS 5.1 读无 BOM 的 UTF-8 不加 `-Encoding UTF8` 会静默出错**——不是乱码那么显眼，
+而是行数直接算错、退出码仍为 0。实测：一个 3 行的 UTF-8 文件，某行末尾字节是
+`a1 8c 0a`，PS 按 GBK 把 `8c` 当双字节前导、吞掉紧随的换行，`Get-Content` 返回
+**2 行**且 `$?` 为 `True`。性质与上面第 1 条的参数改写相同：**结果错、不报错**。
+所以 **PS 5.1 读任何文本文件都显式指定 `-Encoding`**，别赌默认值。
 
 **写出去也有坑**：PS 5.1 的 `-Encoding UTF8` 会带 BOM，`>` 重定向默认写 UTF-16。要无 BOM 的 UTF-8：
 
