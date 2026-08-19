@@ -4,15 +4,19 @@ A small factory for AI-assistant skills. Each skill lives in its own directory u
 `skills/`, and one zero-dependency CLI installs them into every assistant it can find —
 Claude Code, Codex and OpenClaw.
 
-The factory currently ships one skill, [`windows-shell`](skills/windows-shell/SKILL.md):
-a Windows Shell encoding ruleset that fixes GBK/UTF-8 garbling on Windows 10+ with
-MSYS2/Git Bash. Tested and verified on a real Windows 10 (code page 936/GBK) machine.
+The factory currently ships two skills, both measured on a real Windows 10
+(code page 936/GBK) machine. They are complements, not alternatives: one picks the
+shell, the other keeps you out of trouble once you are in it.
 
 ## Skills
 
 | Skill | What it does |
 |-------|--------------|
-| [`windows-shell`](skills/windows-shell/SKILL.md) | 8 encoding rules for PowerShell/pwsh, CMD, Python, Node.js and Git on GBK Windows |
+| [`windows-shell`](skills/windows-shell/SKILL.md) | **How to run a command correctly** — 10 rules covering GBK/UTF-8, BOM, MSYS2 argument rewriting, PowerShell/pwsh, Python, Node.js and Git |
+| [`windows-shell-routing`](skills/windows-shell-routing/SKILL.md) | **Which shell to run it in** — default to Git Bash, with measured boundaries for switching to PowerShell or WSL |
+
+They overlap on only 3 of 18 technical topics, and the detail always lives in
+`windows-shell`; `windows-shell-routing` points at it rather than restating it.
 
 One directory per skill under `skills/`. The **directory name is the skill's identity**:
 it is simultaneously the ClawHub slug, the installed directory name, and the `name:` in
@@ -103,8 +107,8 @@ AI assistants and scripts run in **non-interactive** shells that source neither
 agent actually runs (`sys.flags.utf8_mode` stays `0`). Layer 1 is what fixes that.
 
 See [`skills/windows-shell/SKILL.md`](skills/windows-shell/SKILL.md) — section
-`环境前置条件` — for the exact commands and the reasoning behind each one, plus the 8
-encoding rules themselves.
+`环境前置条件` — for the exact commands and the reasoning behind each one, plus the 10
+rules themselves.
 
 ## Versioning
 

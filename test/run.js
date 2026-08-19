@@ -19,7 +19,8 @@ const FILES = [
   './install.test.js',
   './setup-env.test.js',
   './release.test.js',
-  './skills/windows-shell.test.js'
+  './skills/windows-shell.test.js',
+  './skills/windows-shell-routing.test.js'
 ]
 
 console.log('\nskill-factory test suite\n')
