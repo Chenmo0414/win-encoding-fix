@@ -43,9 +43,9 @@ metadata:
 > 细读：判断依据与完整决策表 → [shell-routing.md](references/shell-routing.md)；
 > WSL 值不值得上 → [wsl.md](references/wsl.md)
 
-## 三、必须知道的五条
+## 三、必须知道的六条
 
-下面五条是实测中真正拉开差距的。其余规则都在 `references/`。
+下面六条是实测中真正拉开差距的。其余规则都在 `references/`。
 
 ### 1. 以 `/` 开头的参数会被静默改写
 
@@ -87,10 +87,25 @@ od -c legacy.txt | head -2        # 或 xxd；Git Bash 没有 hexdump
 | UTF-8 | `-Encoding UTF8` | 默认即可 |
 | GBK/936 | `-Encoding Default` | `[System.Text.Encoding]::GetEncoding(936)` |
 
-> 细读：BOM 陷阱、`>` 默认写 UTF-16、`$OutputEncoding`、传统 CMD 工具替代表
+**写出去也有坑**：PS 5.1 的 `-Encoding UTF8` 会带 BOM，`>` 重定向默认写 UTF-16。要无 BOM 的 UTF-8：
+
+```powershell
+[System.IO.File]::WriteAllText("out.txt", $s, (New-Object System.Text.UTF8Encoding($false)))
+```
+
+> 细读：更多 BOM/重定向陷阱、`$OutputEncoding`、传统 CMD 工具替代表
 > → [encoding.md](references/encoding.md)
 
-### 4. 生成代码时显式写编码，不依赖环境
+### 4. Git Bash 少几个你以为有的工具
+
+`iconv`、`jq`、`make`、`gcc`、`rsync`、`hexdump` **都没有**。转码不要指望 `iconv`，
+验字节用 `od -c`，其余场景改用 Python 或 Node 顶上；真需要完整 GNU 工具链就上 WSL。
+
+```bash
+python -c "import io;io.open('out.txt','w',encoding='utf-8').write(io.open('in.txt',encoding='gbk').read())"
+```
+
+### 5. 生成代码时显式写编码，不依赖环境
 
 ```python
 open('data.txt', encoding='utf-8')          # 裸 open() 在 Windows 上默认 cp936
@@ -102,7 +117,7 @@ python -X utf8 -c "..."                      # 单行命令，不假设 PYTHONUT
 
 环境变量会失效，代码里的显式声明不会。
 
-### 5. venv 直接调解释器，绕开 activate
+### 6. venv 直接调解释器，绕开 activate
 
 ```bash
 ./.venv/Scripts/python.exe -m pytest         # source activate 会拼出正反斜杠混拼的畸形路径
