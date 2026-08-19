@@ -1,6 +1,6 @@
 ---
 name: windows-shell
-version: 5.1.0
+version: 5.2.0
 description: "Windows 命令行工作规范：先选对 shell（默认 Git Bash），再避开编码与 MSYS2 参数改写两类陷阱。覆盖 GBK/UTF-8、BOM、MSYS2 路径转换、PowerShell/pwsh、WSL 判定、Python/Node.js、Git 配置与代码生成规则。适用于 Windows 10/11 + MSYS2/Git Bash 环境下的所有命令行操作。细节按需读 references/。"
 license: MIT
 metadata:
@@ -93,6 +93,20 @@ od -c legacy.txt | head -2        # 或 xxd；Git Bash 没有 hexdump
 `a1 8c 0a`，PS 按 GBK 把 `8c` 当双字节前导、吞掉紧随的换行，`Get-Content` 返回
 **2 行**且 `$?` 为 `True`。性质与上面第 1 条的参数改写相同：**结果错、不报错**。
 所以 **PS 5.1 读任何文本文件都显式指定 `-Encoding`**，别赌默认值。
+
+**含中文的 `.ps1` 脚本文件必须存成 UTF-8 with BOM**。PS 5.1 读脚本时没有 BOM 就按
+ANSI/GBK 解析，中文字面量被拆错——而且多数情况**不报错**：
+
+```
+同一段 $s = "腾讯"，只差 BOM：
+  PS 5.1 无 BOM  →  $s.Length = 3   ✗   字符串在内存里是 3 个错字符
+  PS 5.1 有 BOM  →  $s.Length = 2   ✓
+```
+
+最阴险的是 `Write-Output $s` **打印出来是对的**——脚本按 GBK 误读、输出时又按 GBK 编码，
+两次错误相互抵消。但凡是取长度、截取、正则、比较、哈希的地方全是错的。
+（历史会话里这条也会以 `Unexpected token '鑵捐'` 的语法错形式爆出来，那只是误读的字节
+恰好构成非法 token 的少数情况。）pwsh 7 默认按 UTF-8 读脚本，无此问题。
 
 **写出去也有坑**：PS 5.1 的 `-Encoding UTF8` 会带 BOM，`>` 重定向默认写 UTF-16。要无 BOM 的 UTF-8：
 
