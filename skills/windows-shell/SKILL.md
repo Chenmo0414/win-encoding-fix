@@ -1,6 +1,6 @@
 ---
 name: windows-shell
-version: 5.2.0
+version: 5.3.0
 description: "Windows 命令行工作规范：先选对 shell（默认 Git Bash），再避开编码与 MSYS2 参数改写两类陷阱。覆盖 GBK/UTF-8、BOM、MSYS2 路径转换、PowerShell/pwsh、WSL 判定、Python/Node.js、Git 配置与代码生成规则。适用于 Windows 10/11 + MSYS2/Git Bash 环境下的所有命令行操作。细节按需读 references/。"
 license: MIT
 metadata:
@@ -108,6 +108,15 @@ ANSI/GBK 解析，中文字面量被拆错——而且多数情况**不报错**�
 （历史会话里这条也会以 `Unexpected token '鑵捐'` 的语法错形式爆出来，那只是误读的字节
 恰好构成非法 token 的少数情况。）pwsh 7 默认按 UTF-8 读脚本，无此问题。
 
+**只影响脚本文件，不影响命令行参数。** 中文直接写在 `-Command '...'` 里是安全的：
+
+```bash
+powershell -NoProfile -Command '$s="中文测试"; Write-Output $s.Length'   # → 4，正确
+```
+
+这条容易被反向误判——实测有 agent 因为担心参数被 ANSI 吃掉，绕道去写带 BOM 的 `.ps1`，
+白花两条命令。**要 BOM 的是脚本文件，`-Command` 参数不用。**
+
 **写出去也有坑**：PS 5.1 的 `-Encoding UTF8` 会带 BOM，`>` 重定向默认写 UTF-16。要无 BOM 的 UTF-8：
 
 ```powershell
@@ -145,6 +154,15 @@ python -X utf8 -c "..."                      # 单行命令，不假设 PYTHONUT
 ```
 
 同理，管道会吞掉上游退出码，要用 `set -o pipefail` 或 `${PIPESTATUS[0]}`。
+**但 `PIPESTATUS` 会被下一条命令重置——包括赋值语句本身**：
+
+```bash
+cmd | tail -1; a=${PIPESTATUS[0]}; b=${PIPESTATUS[1]}   # ✗ b 恒为 0，赋值 a 就把数组冲了
+cmd | tail -1; st=("${PIPESTATUS[@]}")                  # ✓ 紧邻、一次取完
+echo "上游=${st[0]} 下游=${st[1]}"
+```
+
+实测：`(exit 7) | tail -1` 后紧邻读得 7；中间隔一条命令再读得 0。
 
 > 细读：venv、工具集不全、SSH 密钥、符号链接 → [gitbash-pitfalls.md](references/gitbash-pitfalls.md)
 
