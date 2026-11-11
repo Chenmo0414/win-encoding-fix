@@ -4,19 +4,18 @@ A small factory for AI-assistant skills. Each skill lives in its own directory u
 `skills/`, and one zero-dependency CLI installs them into every assistant it can find —
 Claude Code, Codex and OpenClaw.
 
-The factory currently ships two skills, both measured on a real Windows 10
-(code page 936/GBK) machine. They are complements, not alternatives: one picks the
-shell, the other keeps you out of trouble once you are in it.
+The factory ships focused skills for Windows command execution and product UI
+design. Each skill includes its own references and version history.
 
 ## Skills
 
 | Skill | What it does |
 |-------|--------------|
-| [`windows-shell`](skills/windows-shell/SKILL.md) | **How to run a command correctly** — 10 rules covering GBK/UTF-8, BOM, MSYS2 argument rewriting, PowerShell/pwsh, Python, Node.js and Git |
-| [`windows-shell-routing`](skills/windows-shell-routing/SKILL.md) | **Which shell to run it in** — default to Git Bash, with measured boundaries for switching to PowerShell or WSL |
+| [`windows-shell`](skills/windows-shell/SKILL.md) | **Windows command execution** — shell selection, GBK/UTF-8, BOM, MSYS2 argument rewriting, PowerShell/pwsh, Python, Node.js and Git |
+| [`anti-ai-ui`](skills/anti-ai-ui/SKILL.md) | **Product UI without the template look** — 18 anti-patterns (decorative accent borders, card overuse, redundant copy, vague disclaimers, everything-on-the-surface), Chinese microcopy and progressive disclosure, before/after examples; keeps brand, required warnings, data density and accessibility |
 
-They overlap on only 3 of 18 technical topics, and the detail always lives in
-`windows-shell`; `windows-shell-routing` points at it rather than restating it.
+Invoking a skill explicitly — Claude Code: `/anti-ai-ui 检查并改造这个页面，重点处理装饰性单侧描边、重复说明和信息堆积`;
+Codex: `$anti-ai-ui ...`. Both also trigger automatically from the skill's description.
 
 One directory per skill under `skills/`. The **directory name is the skill's identity**:
 it is simultaneously the ClawHub slug, the installed directory name, and the `name:` in

@@ -17,7 +17,11 @@
     "encoding",
     "utf-8",
     "gbk",
-    "powershell"
+    "powershell",
+    "ui",
+    "ux",
+    "ui-design",
+    "microcopy"
   ],
   "author": "Chenmo",
   "license": "MIT",
