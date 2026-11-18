@@ -38,9 +38,9 @@ metadata:
 | 跑 Makefile、需要 gcc/rsync，或重 I/O 构建且项目能整个搬进 ext4 | **WSL** |
 | 需要管理员权限 | **交给人做**——UAC 弹窗 agent 点不了，命令会一直挂着 |
 
-宿主自带独立 PowerShell 工具时（如 Claude Code，多为 pwsh 7）：PowerShell 类直接交给它，
-不在 bash 里套 `powershell -Command`，也不加第 2 条前缀；标明 PS 5.1 的陷阱只在显式调
-`powershell.exe` 时成立。开发工具链仍走 Git Bash。
+宿主自带独立 PowerShell 工具时（如 Claude Code）：PowerShell 类直接交给它，不在 bash 里套
+`powershell -Command`。先确认引擎版本（工具说明或 `$PSVersionTable`）：pwsh 7 免第 2 条前缀、
+无 5.1 陷阱；是 5.1 则全部照旧。提权仍交给人，开发工具链仍走 Git Bash。
 
 项目文件在 `C:\`/`D:\` 上时，**不要用 WSL 去操作它**：跨 `/mnt/*` 比纯 Windows 还慢 4–6 倍，
 且惩罚随项目规模线性放大。
