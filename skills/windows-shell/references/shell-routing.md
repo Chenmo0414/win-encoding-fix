@@ -61,6 +61,20 @@ powershell -NoProfile -Command '[Console]::OutputEncoding = [System.Text.Encodin
 
 外层务必单引号（防 bash 展开 `$_`、`$null`），UTF-8 前缀对 PS 5.1 必需——细节见 `windows-shell` skill 规则 1。
 
+## 宿主自带 PowerShell 工具时
+
+有的宿主除了 Bash 工具，还给了一个独立的 PowerShell 工具（如 Claude Code，工具说明里会写版本，
+装了 pwsh 7 时就是 pwsh 7；有的宿主还会把它标成 primary）。此时：
+
+- **上面四类直接交给 PowerShell 工具**，不要在 Bash 工具里套 `powershell -Command '...'`——
+  那会绕回 PS 5.1，平白引入 UTF-8 前缀、外层引号、`$_` 被 bash 展开这一串问题。
+- **pwsh 7 不需要 UTF-8 前缀。** 实测（Claude Code 桌面版，pwsh 7.6.6）：`[Console]::OutputEncoding`
+  已是 `utf-8`，`"腾讯中文".Length` 为 4，`Get-Service` 直接可用。
+- **标明 PS 5.1 的陷阱只在显式调用 `powershell.exe` 时成立**（BOM `.ps1`、读无 BOM UTF-8 算错行数、
+  `>` 写 UTF-16）。pwsh 7 读 GBK 遗留文件仍需显式 `GetEncoding(936)`，这条不因换工具而失效。
+- **「primary」不改变开发工具链的分工。** 上面的 token 实测里 pwsh 7 是 2.32x，npm / git / python
+  仍走 Bash 工具；两个工具并存时按每条命令选，而不是整个会话押在一边。
+
 ## 反模式
 
 | 别这样 | 该这样 |
@@ -71,6 +85,7 @@ powershell -NoProfile -Command '[Console]::OutputEncoding = [System.Text.Encodin
 | 让 agent 尝试提权 | UAC 弹窗会挂死，写进说明让人做 |
 | 遇到报错先怀疑编码 | 先分清：乱码 → 编码问题；语法错/找不到文件 → 参数被改写 |
 | 整个会话切到 PowerShell 或 WSL | 单条命令切换，主线留在 Git Bash |
+| 有独立 PowerShell 工具，仍在 Bash 里套 `powershell -Command` | 直接用那个工具（多为 pwsh 7，免前缀） |
 
 ## 一句话总结
 
