@@ -97,6 +97,8 @@ Set-Content out.txt -Value $content -Encoding utf8NoBOM
 
 **输出重定向的编码**：PS 5.1 的 `>` 和 `Out-File` **默认写 UTF-16 LE**，不是 UTF-8。若要把命令输出存成 UTF-8 文件给后续读取，务必显式 `... | Out-File -Encoding utf8 out.txt`（注意上面的 BOM 说明），或捕获字符串后用 .NET 写。
 
+**`.ps1` 脚本文件的 BOM**：含中文的脚本在 PS 5.1 下必须存成 UTF-8 with BOM，否则按 GBK 误读，多数情况静默算错（`$s.Length` 不对但打印看着正常）。少数情况会以 `Unexpected token '鑵捐'` 的语法错形式爆出来——那只是误读的字节恰好构成非法 token。pwsh 7 默认按 UTF-8 读脚本，无此问题。
+
 **stdin / 管道方向**：`[Console]::OutputEncoding` 只管 PowerShell **输出**。若要把 UTF-8 内容通过管道**喂进** PowerShell（`echo ... | powershell ...`），还需 `[Console]::InputEncoding = [System.Text.Encoding]::UTF8`；而 PowerShell **管道给下游原生命令**（如 `... | findstr`）用的是 `$OutputEncoding` 变量（默认 ASCII，会丢中文）。能用内联 `-Command` 参数就别走 stdin 管道。
 
 ### 规则 3：禁止直接使用传统 CMD 工具和 cmd /c

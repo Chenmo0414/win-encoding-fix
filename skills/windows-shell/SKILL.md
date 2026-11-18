@@ -1,6 +1,6 @@
 ---
 name: windows-shell
-version: 5.3.0
+version: 5.4.0
 description: "Windows 命令行工作规范：先选对 shell（默认 Git Bash），再避开编码与 MSYS2 参数改写两类陷阱。覆盖 GBK/UTF-8、BOM、MSYS2 路径转换、PowerShell/pwsh、WSL 判定、Python/Node.js、Git 配置与代码生成规则。适用于 Windows 10/11 + MSYS2/Git Bash 环境下的所有命令行操作。细节按需读 references/。"
 license: MIT
 metadata:
@@ -37,6 +37,10 @@ metadata:
 | Windows 服务、注册表、事件日志、计划任务、证书、.NET/COM、对象管道 | **PowerShell**（单条命令切过去，主线不搬家） |
 | 跑 Makefile、需要 gcc/rsync，或重 I/O 构建且项目能整个搬进 ext4 | **WSL** |
 | 需要管理员权限 | **交给人做**——UAC 弹窗 agent 点不了，命令会一直挂着 |
+
+宿主自带独立 PowerShell 工具时（如 Claude Code）：PowerShell 类直接交给它，不在 bash 里套
+`powershell -Command`。先确认引擎版本（工具说明或 `$PSVersionTable`）：pwsh 7 免第 2 条前缀、
+无 5.1 陷阱；是 5.1 则全部照旧。提权仍交给人，开发工具链仍走 Git Bash。
 
 项目文件在 `C:\`/`D:\` 上时，**不要用 WSL 去操作它**：跨 `/mnt/*` 比纯 Windows 还慢 4–6 倍，
 且惩罚随项目规模线性放大。
@@ -105,8 +109,7 @@ ANSI/GBK 解析，中文字面量被拆错——而且多数情况**不报错**�
 
 最阴险的是 `Write-Output $s` **打印出来是对的**——脚本按 GBK 误读、输出时又按 GBK 编码，
 两次错误相互抵消。但凡是取长度、截取、正则、比较、哈希的地方全是错的。
-（历史会话里这条也会以 `Unexpected token '鑵捐'` 的语法错形式爆出来，那只是误读的字节
-恰好构成非法 token 的少数情况。）pwsh 7 默认按 UTF-8 读脚本，无此问题。
+pwsh 7 默认按 UTF-8 读脚本，无此问题。
 
 **只影响脚本文件，不影响命令行参数。** 中文直接写在 `-Command '...'` 里是安全的：
 

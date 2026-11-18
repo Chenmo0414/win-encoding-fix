@@ -3,6 +3,23 @@
 版本号与 `SKILL.md` frontmatter 的 `version` 严格一致，由测试看守；
 发布脚本按版本号从本文件提取对应段落作为 changelog。
 
+## 5.4.0
+
+适配「宿主自带独立 PowerShell 工具」的环境（如 Claude Code 桌面版：PowerShell 工具为 primary，
+Bash 工具是 Git Bash）。原规范只设想了「Git Bash 里单条调 `powershell -Command`」一种切法，
+在这类宿主里会把 agent 带回 PS 5.1，白白引入前缀、引号和 `$_` 展开问题。
+
+**新增：有独立 PowerShell 工具时，Windows 系统类命令直接交给它。**
+实测 Claude Code 桌面版 pwsh 7.6.6：`[Console]::OutputEncoding` 已是 `utf-8`，
+`"腾讯中文".Length` 为 4，无需 UTF-8 前缀。豁免取决于引擎而非工具接口：先确认版本，
+是 pwsh 7 才免前缀、免 5.1 陷阱，是 PS 5.1 则全部照旧；pwsh 7 读 GBK 遗留文件仍需显式 936。
+提权（第 4 类）不随之改道，仍交给人——独立工具同样点不了 UAC。开发工具链分工不变，仍走 Bash 工具
+（token 实测 pwsh 7 为 2.32x）。细节写进 `references/shell-routing.md`。
+
+**挪动：** `.ps1` 误读时偶发的 `Unexpected token '鑵捐'` 说明从主文件移到
+`references/encoding.md`，给新条目腾篇幅。主文件 8716 → 8882 字节，仍在 9000 守卫内，
+未抬高守卫。
+
 ## 5.3.0
 
 补两条，否掉一条。候选来自 agent 实测自报的「规范没写、只能靠自有知识现推」，
